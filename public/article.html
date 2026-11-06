@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>優惠內容</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#fff}
+.c{max-width:560px;margin:auto;padding:20px}
+img{width:100%;border-radius:12px;margin-bottom:14px}
+h1{font-size:24px;margin:0 0 6px}
+.d{color:#888;font-size:13px;margin-bottom:14px}
+.b{white-space:pre-line;line-height:1.7;font-size:17px}
+a.btn{display:block;text-align:center;margin-top:20px;padding:16px;border-radius:12px;background:#fc0;color:#000;font-weight:700;text-decoration:none;font-size:18px}
+a.home{display:block;text-align:center;margin-top:18px;color:#888;font-size:14px}
+</style></head><body><div class="c" id="app">載入中…</div>
+<script>
+const SB='https://bfydeckhzazenebgduwy.supabase.co',KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
+const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const safe=u=>/^https:\/\//i.test(u||'')?u:'';
+(async()=>{
+  const id=new URLSearchParams(location.search).get('id');
+  const app=document.getElementById('app');
+  if(!/^\d+$/.test(id||''))return app.textContent='找不到這則優惠';
+  const r=await fetch(SB+'/rest/v1/rpc/push_demo_get',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_id:+id})});
+  const a=r.ok?await r.json():null;
+  if(!a)return app.textContent='找不到這則優惠';
+  document.title=a.title;
+  app.innerHTML=(safe(a.image_url)?'<img src="'+esc(safe(a.image_url))+'" alt="">':'')
+   +'<h1>'+esc(a.title)+'</h1><div class="d">'+new Date(a.created_at).toLocaleString('zh-TW')+'</div>'
+   +'<div class="b">'+esc(a.body)+'</div>'
+   +(safe(a.link_url)?'<a class="btn" href="'+esc(safe(a.link_url))+'" target="_blank" rel="noopener">前往優惠連結</a>':'')
+   +'<a class="home" href="/">回首頁</a>';
+})();
+</script></body></html>

@@ -14,6 +14,10 @@ button{background:#fc0;color:#000;font-weight:700;border:0;font-size:18px}
 <input id="pw" type="password" placeholder="管理員密碼">
 <input id="t" placeholder="標題" value="最新優惠">
 <textarea id="b" rows="4" placeholder="優惠內容（例：今日全館 8 折！）"></textarea>
+<input id="link" type="url" placeholder="優惠連結（選填，https://…）">
+<label style="display:block;color:#aaa;font-size:14px;margin-top:6px">圖片（選填，iPhone 通知不顯示，但文章頁會顯示）</label>
+<input id="img" type="file" accept="image/*">
+<img id="prev" style="max-width:100%;border-radius:10px;display:none">
 <button id="go">發送給所有訂閱者</button>
 <div id="out"></div>
 <h3 style="margin-top:28px">📊 訂閱者</h3>
@@ -26,10 +30,15 @@ button{background:#fc0;color:#000;font-weight:700;border:0;font-size:18px}
 pw.value=localStorage.getItem('pw')||'';
 go.onclick=async()=>{
   out.textContent='發送中…';
-  const r=await fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw.value,title:t.value,body:b.value})});
-  const j=await r.json().catch(()=>({}));
-  if(r.ok){localStorage.setItem('pw',pw.value);out.textContent=`✅ 成功 ${j.sent} / 失敗 ${j.failed} / 共 ${j.total}`;load()}
-  else out.textContent='❌ '+(j.error||r.status);
+  try{
+    let image='';
+    if(img.files[0]){out.textContent='上傳圖片中…';image=await uploadImage(img.files[0])}
+    out.textContent='發送中…';
+    const r=await fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw.value,title:t.value,body:b.value,image,link:link.value.trim()})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){localStorage.setItem('pw',pw.value);out.textContent=`✅ 成功 ${j.sent} / 失敗 ${j.failed} / 共 ${j.total}`;b.value='';link.value='';img.value='';prev.style.display='none';load()}
+    else out.textContent='❌ '+(j.error||r.status);
+  }catch(e){out.textContent='❌ '+e.message}
 };
 
 const SB='https://bfydeckhzazenebgduwy.supabase.co',KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
@@ -40,7 +49,20 @@ async function load(){
   if(!r.ok){subs.textContent='密碼錯誤';hist.textContent='';return}
   const d=await r.json();
   subs.textContent=`Android ${d.subs.android} ／ iPhone ${d.subs.ios} ／ 其他 ${d.subs.other}`;
-  hist.innerHTML=d.items.length?d.items.map(i=>`<div style="border-bottom:1px solid #333;padding:10px 0"><div style="font-size:13px;color:#888">${new Date(i.created_at).toLocaleString('zh-TW')} ・ 成功 ${i.sent}／失敗 ${i.failed}／共 ${i.total}</div><b>${esc(i.title)}</b><div style="white-space:pre-line">${esc(i.body)}</div></div>`).join(''):'尚無紀錄';
+  hist.innerHTML=d.items.length?d.items.map(i=>`<div style="border-bottom:1px solid #333;padding:10px 0"><div style="font-size:13px;color:#888">${new Date(i.created_at).toLocaleString('zh-TW')} ・ 成功 ${i.sent}／失敗 ${i.failed}／共 ${i.total}</div>${i.image_url?`<img src="${esc(i.image_url)}" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin:6px 0">`:''}<b>${esc(i.title)}</b> <a href="/article.html?id=${i.id}" target="_blank" style="color:#fc0;font-size:13px">查看文章</a><div style="white-space:pre-line">${esc(i.body)}</div></div>`).join(''):'尚無紀錄';
 }
 reload.onclick=load; load();
+img.onchange=()=>{const f=img.files[0];if(f){prev.src=URL.createObjectURL(f);prev.style.display='block'}else prev.style.display='none'};
+// 壓縮圖片(最長邊 1200px, JPEG) 後上傳到 Supabase Storage，回傳公開網址
+async function uploadImage(file){
+  const bmp=await createImageBitmap(file);
+  const k=Math.min(1,1200/Math.max(bmp.width,bmp.height));
+  const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);
+  cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);
+  const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));
+  const name=Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+  const r=await fetch(SB+'/storage/v1/object/deal-images/'+name,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'image/jpeg'},body:blob});
+  if(!r.ok)throw new Error('圖片上傳失敗');
+  return SB+'/storage/v1/object/public/deal-images/'+name;
+}
 </script></body></html>
