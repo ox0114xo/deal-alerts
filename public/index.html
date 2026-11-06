@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>公告通知</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111111">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
+.c{max-width:360px;width:100%;text-align:center}
+button{width:100%;padding:16px;margin:8px 0;font-size:18px;border:0;border-radius:12px;background:#fc0;color:#000;font-weight:700}
+button:disabled{opacity:.4}
+#msg{margin-top:12px;font-size:15px;line-height:1.6;color:#ccc;white-space:pre-line}
+</style></head><body><div class="c">
+<h1>📢 公告通知</h1>
+<button id="install" hidden>安裝到桌面</button>
+<button id="sub">開啟通知</button>
+<div id="msg"></div>
+</div>
+<script>
+const VAPID='BM28jEtri0zOpJy0fm44NMh3brS-RKk6NBB1XET8rkNFofI74u9U4qMPFmevaUztuDoMJhsvEFmOIucbM4_5mlY', SB='https://bfydeckhzazenebgduwy.supabase.co', KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
+const msg=t=>document.getElementById('msg').textContent=t;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+const u8=b=>{const p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
+let dp=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;install.hidden=false});
+install.onclick=async()=>{if(dp){dp.prompt();dp=null;install.hidden=true}};
+if(isIOS&&!standalone)msg('iPhone：點 Safari 下方「分享」→「加入主畫面」，再從桌面開啟此 App，才能開啟通知。');
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
+sub.onclick=async()=>{
+  try{
+    if(!('PushManager'in window))return msg('此瀏覽器不支援推播'+(isIOS?'\n請先加入主畫面再開啟':''));
+    const p=await Notification.requestPermission();
+    if(p!=='granted')return msg('未允許通知');
+    const reg=await navigator.serviceWorker.ready;
+    const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
+    const r=await fetch(SB+'/rest/v1/rpc/push_demo_subscribe',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_sub:s.toJSON()})});
+    if(!r.ok)throw new Error(await r.text());
+    msg('✅ 已開啟，之後會收到公告');
+  }catch(e){msg('失敗：'+e.message)}
+};
+</script></body></html>

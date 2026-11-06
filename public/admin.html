@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>發公告</title>
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#fff;padding:20px}
+.c{max-width:420px;margin:auto}
+input,textarea,button{width:100%;box-sizing:border-box;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:1px solid #444;background:#222;color:#fff}
+button{background:#fc0;color:#000;font-weight:700;border:0;font-size:18px}
+#out{margin-top:10px;color:#ccc}
+</style></head><body><div class="c">
+<h2>📣 管理員發公告</h2>
+<input id="pw" type="password" placeholder="管理員密碼">
+<input id="t" placeholder="標題" value="公告">
+<textarea id="b" rows="4" placeholder="公告內容"></textarea>
+<button id="go">發送給所有人</button>
+<div id="out"></div>
+</div>
+<script>
+pw.value=localStorage.getItem('pw')||'';
+go.onclick=async()=>{
+  out.textContent='發送中…';
+  const r=await fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw.value,title:t.value,body:b.value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){localStorage.setItem('pw',pw.value);out.textContent=`✅ 成功 ${j.sent} / 失敗 ${j.failed} / 共 ${j.total}`}
+  else out.textContent='❌ '+(j.error||r.status);
+};
+</script></body></html>
