@@ -30,7 +30,7 @@ const u8=b=>{const p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').repl
 let dp=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;install.hidden=false});
 install.onclick=async()=>{if(dp){dp.prompt();dp=null;install.hidden=true}};
-if(isIOS&&!standalone)msg('iPhone: tap Share in Safari → "Add to Home Screen", then open the app from your home screen to enable notifications.');
+if(isIOS&&!standalone)msg('iPhone：點 Safari 下方「分享」→「加入主畫面」，再從桌面開啟此 App，才能開啟通知。');
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
 const rpc=(fn,a)=>fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(a)});
 // Toggle buttons by subscription state
@@ -44,7 +44,7 @@ async function refresh(){
 }
 sub.onclick=async()=>{
   try{
-    if(!('PushManager'in window))return msg('Push is not supported in this browser'+(isIOS?'\nAdd to Home Screen first, then try again':''));
+    if(!('PushManager'in window))return msg('此瀏覽器不支援推播'+(isIOS?'\n請先加入主畫面再開啟':''));
     const p=await Notification.requestPermission();
     if(p!=='granted')return msg('未允許通知');
     const reg=await navigator.serviceWorker.ready;
