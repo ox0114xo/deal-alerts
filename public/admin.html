@@ -2,68 +2,253 @@
 <html lang="zh-Hant"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>發送優惠通知</title>
+<meta name="robots" content="noindex,nofollow">
+<title>優惠通知後台</title>
 <style>
-body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#fff;padding:20px}
-.c{max-width:420px;margin:auto}
-input,textarea,button{width:100%;box-sizing:border-box;padding:14px;margin:6px 0;font-size:16px;border-radius:10px;border:1px solid #444;background:#222;color:#fff}
-button{background:#fc0;color:#000;font-weight:700;border:0;font-size:18px}
-#out{margin-top:10px;color:#ccc}
+:root{--a:#ffcc00}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#111;color:#fff;padding:16px 16px 80px}
+.c{max-width:480px;margin:auto}
+input,textarea,select,button{width:100%;padding:13px;margin:5px 0;font-size:16px;border-radius:10px;border:1px solid #444;background:#222;color:#fff;font-family:inherit}
+button{background:var(--a);color:#000;font-weight:700;border:0}
+button.sec{background:#333;color:#fff;font-weight:400}
+button.sm{width:auto;padding:6px 12px;font-size:13px;margin:0}
+button.dng{background:#c0392b;color:#fff}
+label{display:block;color:#aaa;font-size:13px;margin-top:10px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{background:#222;color:#aaa;font-weight:400;margin:0;padding:10px}
+.tabs button.on{background:var(--a);color:#000;font-weight:700}
+.card{background:#1c1c1c;border-radius:12px;padding:12px;margin:10px 0}
+.mut{color:#888;font-size:13px}
+.badge{display:inline-block;border-radius:8px;padding:2px 8px;font-size:12px;background:#333;margin-right:4px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.85);overflow:auto;padding:16px;z-index:9}
+.nt{background:#2b2b2b;border-radius:14px;padding:12px;display:flex;gap:10px;margin:8px 0}
+.nt img.i{width:36px;height:36px;border-radius:8px}
+.nt .big{width:100%;border-radius:8px;margin-top:8px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+hr{border:0;border-top:1px solid #333;margin:18px 0}
 </style></head><body><div class="c">
-<h2>📣 發送優惠通知</h2>
-<input id="pw" type="password" placeholder="管理員密碼">
-<input id="t" placeholder="標題" value="最新優惠">
-<textarea id="b" rows="4" placeholder="優惠內容（例：今日全館 8 折！）"></textarea>
-<input id="link" type="url" placeholder="優惠連結（選填，https://…）">
-<label style="display:block;color:#aaa;font-size:14px;margin-top:6px">圖片（選填，iPhone 通知不顯示，但文章頁會顯示）</label>
-<input id="img" type="file" accept="image/*">
-<img id="prev" style="max-width:100%;border-radius:10px;display:none">
-<button id="go">發送給所有訂閱者</button>
-<div id="out"></div>
-<h3 style="margin-top:28px">📊 訂閱者</h3>
-<div id="subs" style="color:#ccc">輸入密碼後載入</div>
-<h3 style="margin-top:20px">🕘 歷史發送紀錄</h3>
-<div id="hist" style="color:#ccc"></div>
-<button id="reload" style="background:#444;color:#fff;font-size:16px">重新整理紀錄</button>
+
+<div id="login">
+  <h2>🔐 後台登入</h2>
+  <input id="pw" type="password" placeholder="密碼" autocomplete="current-password">
+  <button id="loginBtn">登入</button>
+  <div id="lmsg" class="mut"></div>
+</div>
+
+<div id="app" hidden>
+  <div class="top"><b id="roleTag"></b><button class="sm sec" id="logout">登出</button></div>
+  <div class="tabs">
+    <button data-tab="send" class="on">發送</button>
+    <button data-tab="hist">紀錄</button>
+    <button data-tab="set" id="tabSet">設定</button>
+  </div>
+
+  <section id="t-send">
+    <label>分類（只發給訂閱該分類或未選分類的人）</label>
+    <select id="cat"></select>
+    <input id="t" placeholder="標題" value="最新優惠">
+    <textarea id="b" rows="5" placeholder="優惠內容（例：今日全館 8 折！）"></textarea>
+    <input id="link" type="url" placeholder="優惠連結（選填，https://…）">
+    <label>圖片（選填；iPhone 通知不顯示，但文章頁會顯示）</label>
+    <input id="img" type="file" accept="image/*">
+    <img id="prev" style="max-width:100%;border-radius:10px;display:none">
+    <div class="row">
+      <div><label>優惠截止（選填）</label><input id="exp" type="datetime-local"></div>
+      <div><label>預約發送（選填）</label><input id="sch" type="datetime-local"></div>
+    </div>
+    <label id="remL" hidden style="color:#fff"><input id="rem" type="checkbox" style="width:auto;margin-right:8px">截止前 3 小時自動再提醒一次</label>
+    <button id="go">預覽並發送</button>
+    <div id="out" class="mut"></div>
+  </section>
+
+  <section id="t-hist" hidden>
+    <div id="subs" class="card">載入中…</div>
+    <div id="hist"></div>
+    <button class="sec" id="reload">重新整理</button>
+  </section>
+
+  <section id="t-set" hidden>
+    <h3>品牌與聯絡資訊</h3>
+    <label>品牌名稱</label><input id="s_name">
+    <label>副標語</label><input id="s_tag">
+    <label>品牌色</label><input id="s_acc" type="color" style="height:48px;padding:4px">
+    <label>電話（文章頁顯示撥號按鈕）</label><input id="s_phone" type="tel">
+    <label>地址（文章頁顯示導航按鈕）</label><input id="s_addr">
+    <label>LINE 官方帳號加好友連結（https://…）</label><input id="s_line">
+    <label>優惠分類（用逗號分隔，最多 12 個）</label><input id="s_cats">
+    <button id="saveBrand">儲存</button>
+    <hr>
+    <h3>LINE 官方帳號同步（選用）</h3>
+    <div class="mut">到 LINE Developers 取得 Messaging API 的 Channel access token 貼在這裡。<span id="lineSt"></span></div>
+    <input id="s_ltok" type="password" placeholder="Channel access token（留空並儲存＝清除）">
+    <button class="sec" id="saveTok">儲存 token</button>
+    <label style="color:#fff"><input id="s_lauto" type="checkbox" style="width:auto;margin-right:8px">發送優惠時自動同步廣播到 LINE</label>
+    <button class="sec" id="saveAuto">儲存同步設定</button>
+    <hr>
+    <h3>變更密碼</h3>
+    <select id="pwTarget"><option value="staff">員工密碼</option><option value="boss">老闆密碼</option></select>
+    <input id="pwNew" type="password" placeholder="新密碼（至少 8 碼）" autocomplete="new-password">
+    <button class="sec" id="savePw">變更密碼</button>
+    <div id="setOut" class="mut"></div>
+  </section>
+</div>
+
+<div id="modal" hidden><div class="c" id="mbody"></div></div>
 </div>
 <script>
-pw.value=localStorage.getItem('pw')||'';
-go.onclick=async()=>{
-  out.textContent='發送中…';
-  try{
-    let image='';
-    if(img.files[0]){out.textContent='上傳圖片中…';image=await uploadImage(img.files[0])}
-    out.textContent='發送中…';
-    const r=await fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:pw.value,title:t.value,body:b.value,image,link:link.value.trim()})});
-    const j=await r.json().catch(()=>({}));
-    if(r.ok){localStorage.setItem('pw',pw.value);out.textContent=`✅ 成功 ${j.sent} / 失敗 ${j.failed} / 共 ${j.total}`;b.value='';link.value='';img.value='';prev.style.display='none';load()}
-    else out.textContent='❌ '+(j.error||r.status);
-  }catch(e){out.textContent='❌ '+e.message}
-};
-
 const SB='https://bfydeckhzazenebgduwy.supabase.co',KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
+const $=id=>document.getElementById(id);
 const esc=x=>String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-async function load(){
-  if(!pw.value)return;
-  const r=await fetch(SB+'/rest/v1/rpc/push_demo_history',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_pw:pw.value})});
-  if(!r.ok){subs.textContent='密碼錯誤';hist.textContent='';return}
-  const d=await r.json();
-  subs.textContent=`Android ${d.subs.android} ／ iPhone ${d.subs.ios} ／ 其他 ${d.subs.other}`;
-  hist.innerHTML=d.items.length?d.items.map(i=>`<div style="border-bottom:1px solid #333;padding:10px 0"><div style="font-size:13px;color:#888">${new Date(i.created_at).toLocaleString('zh-TW')} ・ 成功 ${i.sent}／失敗 ${i.failed}／共 ${i.total}</div>${i.image_url?`<img src="${esc(i.image_url)}" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin:6px 0">`:''}<b>${esc(i.title)}</b> <a href="/article.html?id=${i.id}" target="_blank" style="color:#fc0;font-size:13px">查看文章</a><div style="white-space:pre-line">${esc(i.body)}</div></div>`).join(''):'尚無紀錄';
+const errMap={unauthorized:'密碼錯誤',locked:'登入錯誤次數過多，請 15 分鐘後再試',forbidden:'沒有權限'};
+const fmt=d=>d?new Date(d).toLocaleString('zh-TW',{hour12:false}):'';
+let PW=sessionStorage.getItem('pw')||'',ROLE='',CFG={},last=Date.now();
+
+// 管理 RPC：一律帶密碼，由資料庫驗證密碼、角色與失敗鎖定
+async function api(action,args){
+  const r=await fetch(SB+'/rest/v1/rpc/push_demo_admin',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_pw:PW,p_action:action,p_args:args||{}})});
+  const j=await r.json().catch(()=>({}));
+  if(!j.ok)throw new Error(errMap[j.error]||j.error||'失敗（'+r.status+'）');
+  return j;
 }
-reload.onclick=load; load();
-img.onchange=()=>{const f=img.files[0];if(f){prev.src=URL.createObjectURL(f);prev.style.display='block'}else prev.style.display='none'};
-// 壓縮圖片(最長邊 1200px, JPEG) 後上傳到 Supabase Storage，回傳公開網址
+async function publicSettings(){CFG=await (await fetch(SB+'/rest/v1/rpc/push_demo_settings_get',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:'{}'})).json();
+  if(/^#[0-9a-f]{6}$/i.test(CFG.accent||''))document.documentElement.style.setProperty('--a',CFG.accent)}
+
+// ===== 登入 / 登出 / 閒置 30 分鐘自動登出 =====
+function logout(){PW='';sessionStorage.removeItem('pw');location.reload()}
+async function enter(){
+  try{
+    const j=await api('whoami');
+    if(!['boss','staff'].includes(j.role))throw new Error('此密碼沒有後台權限');
+    ROLE=j.role;sessionStorage.setItem('pw',PW);
+    $('login').hidden=true;$('app').hidden=false;
+    $('roleTag').textContent=ROLE==='boss'?'👑 老闆':'👤 員工';
+    $('tabSet').hidden=ROLE!=='boss';
+    await publicSettings();fillCats();fillSettings();
+  }catch(e){PW='';sessionStorage.removeItem('pw');$('login').hidden=false;$('app').hidden=true;$('lmsg').textContent=e.message}
+}
+$('loginBtn').onclick=()=>{PW=$('pw').value;enter()};
+$('pw').onkeydown=e=>{if(e.key==='Enter')$('loginBtn').click()};
+$('logout').onclick=logout;
+['click','keydown','touchstart'].forEach(ev=>addEventListener(ev,()=>last=Date.now(),{passive:true}));
+setInterval(()=>{if(PW&&Date.now()-last>30*60e3)logout()},30e3);
+if(PW)enter();
+
+// ===== 分頁 =====
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['send','hist','set'].forEach(t=>$('t-'+t).hidden=t!==b.dataset.tab);
+  if(b.dataset.tab==='hist')load();
+});
+function fillCats(){
+  const cats=Array.isArray(CFG.categories)?CFG.categories:[];
+  $('cat').innerHTML='<option value="">全部（不分類）</option>'+cats.map(c=>'<option>'+esc(c)+'</option>').join('');
+}
+$('exp').onchange=()=>$('remL').hidden=!$('exp').value;
+$('img').onchange=()=>{const f=$('img').files[0];if(f){$('prev').src=URL.createObjectURL(f);$('prev').style.display='block'}else $('prev').style.display='none'};
+
+// ===== 圖片：壓縮後經 Edge Function 上傳（需密碼）=====
 async function uploadImage(file){
   const bmp=await createImageBitmap(file);
   const k=Math.min(1,1200/Math.max(bmp.width,bmp.height));
   const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);
   cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);
   const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));
-  // 透過 Edge Function 上傳（需管理員密碼），不再開放匿名上傳
-  const r=await fetch(SB+'/functions/v1/push-demo-upload',{method:'POST',headers:{'x-admin-pw':pw.value,'Content-Type':'image/jpeg'},body:blob});
+  const r=await fetch(SB+'/functions/v1/push-demo-upload',{method:'POST',headers:{'x-admin-pw':PW,'Content-Type':'image/jpeg'},body:blob});
   const j=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(r.status===401?'密碼錯誤':'圖片上傳失敗：'+(j.error||r.status));
+  if(!r.ok)throw new Error(r.status===401?(errMap[j.error]||'密碼錯誤'):'圖片上傳失敗：'+(j.error||r.status));
   return j.url;
 }
+
+// ===== 發送：預覽 → 顯示人數 → 確認 =====
+const collect=()=>({title:$('t').value.trim(),body:$('b').value.trim(),link:$('link').value.trim(),category:$('cat').value,
+  expires_at:$('exp').value?new Date($('exp').value).toISOString():'',scheduled_at:$('sch').value?new Date($('sch').value).toISOString():'',remind:$('rem').checked&&!!$('exp').value});
+$('go').onclick=async()=>{
+  const d=collect();$('out').textContent='';
+  if(!d.title||!d.body)return $('out').textContent='請填寫標題與內容';
+  if(d.link&&!/^https:\/\//i.test(d.link))return $('out').textContent='連結必須是 https 開頭';
+  if(d.scheduled_at&&new Date(d.scheduled_at)<=new Date())return $('out').textContent='預約時間必須在未來';
+  if(d.expires_at&&new Date(d.expires_at)<=new Date())return $('out').textContent='截止時間必須在未來';
+  let n='?';try{n=(await api('count',{category:d.category})).count}catch(e){return $('out').textContent=e.message}
+  const f=$('img').files[0];
+  $('mbody').innerHTML='<h3>發送前預覽</h3>'
+   +'<div class="mut">手機通知長這樣：</div><div class="nt"><img class="i" src="/icon-192.png"><div><b>'+esc(d.title)+'</b><div class="mut" style="color:#ccc">'+esc(d.body.slice(0,120))+'</div></div></div>'
+   +(f?'<div class="mut">Android 展開後會顯示圖片（iPhone 不顯示）：</div><img class="big" src="'+URL.createObjectURL(f)+'" style="width:100%;border-radius:10px">':'')
+   +'<div class="card"><div><b>'+esc(d.title)+'</b></div><div style="white-space:pre-line;margin-top:6px">'+esc(d.body)+'</div>'
+   +(d.link?'<div class="mut" style="margin-top:6px">連結：'+esc(d.link)+'</div>':'')+'</div>'
+   +'<div class="card">分類：<b>'+esc(d.category||'全部')+'</b><br>對象：<b>'+n+' 位訂閱者</b><br>'
+   +(d.scheduled_at?'⏰ 預約發送：<b>'+fmt(d.scheduled_at)+'</b><br>':'立即發送<br>')
+   +(d.expires_at?'截止：'+fmt(d.expires_at)+(d.remind?'（截止前 3 小時再提醒）':''):'無截止時間')+'</div>'
+   +'<button id="confirm">'+(d.scheduled_at?'確認預約':'確認發送給 '+n+' 人')+'</button><button class="sec" id="cancel">返回修改</button>';
+  $('modal').hidden=false;
+  $('cancel').onclick=()=>$('modal').hidden=true;
+  $('confirm').onclick=()=>doSend(d);
+};
+async function doSend(d){
+  const btn=$('confirm');btn.disabled=true;
+  try{
+    let image='';
+    if($('img').files[0]){btn.textContent='上傳圖片中…';image=await uploadImage($('img').files[0])}
+    btn.textContent='發送中…';
+    const r=await fetch('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pw:PW,...d,image})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||r.status);
+    $('modal').hidden=true;
+    $('out').textContent=j.scheduled?'✅ 已預約，到時間會自動發送':`✅ 成功 ${j.sent} / 失敗 ${j.failed} / 共 ${j.total}`+(j.line?'　LINE：'+j.line:'');
+    ['b','link','img','exp','sch'].forEach(k=>$(k).value='');$('rem').checked=false;$('remL').hidden=true;$('prev').style.display='none';
+  }catch(e){btn.disabled=false;btn.textContent='重試';$('out').textContent='❌ '+e.message;$('modal').hidden=true}
+}
+
+// ===== 紀錄 =====
+const stText=i=>i.status==='scheduled'?'⏰ 排程 '+fmt(i.scheduled_at):i.status==='unpublished'?'🚫 已下架':(i.expires_at&&new Date(i.expires_at)<new Date()?'⌛ 已結束':'✅ 已發送');
+async function load(){
+  try{
+    const d=await api('history');
+    $('subs').innerHTML='<b>訂閱者</b>　Android '+d.subs.android+' ／ iPhone '+d.subs.ios+' ／ 其他 '+d.subs.other;
+    $('hist').innerHTML=d.items.length?d.items.map(i=>'<div class="card">'
+      +'<div class="mut">'+fmt(i.created_at)+' ・ '+(i.created_by==='boss'?'老闆':'員工')+'</div>'
+      +'<div><span class="badge">'+stText(i)+'</span>'+(i.category?'<span class="badge">'+esc(i.category)+'</span>':'')+'</div>'
+      +(i.image_url?'<img src="'+esc(i.image_url)+'" style="width:100%;max-height:130px;object-fit:cover;border-radius:8px;margin:6px 0">':'')
+      +'<b>'+esc(i.title)+'</b><div style="white-space:pre-line;color:#ccc;margin:4px 0">'+esc(i.body)+'</div>'
+      +'<div class="mut">成功 '+i.sent+' ／ 失敗 '+i.failed+' ／ 共 '+i.total+' ・ 👁 '+i.views+' 次閱讀'+(i.expires_at?' ・ 截止 '+fmt(i.expires_at):'')+'</div>'
+      +'<div class="row" style="margin-top:8px"><a href="/article.html?id='+i.id+'" target="_blank" style="color:var(--a);align-self:center">查看文章</a>'
+      +(ROLE==='boss'?(i.status==='unpublished'?'<button class="sm sec" data-act="republish" data-id="'+i.id+'">重新上架</button>':'<button class="sm dng" data-act="unpublish" data-id="'+i.id+'">'+(i.status==='scheduled'?'取消排程':'下架')+'</button>'):'')
+      +'</div></div>').join(''):'<div class="mut">尚無紀錄</div>';
+  }catch(e){$('hist').innerHTML='<div class="mut">'+esc(e.message)+'</div>'}
+}
+$('hist').onclick=async e=>{const b=e.target.closest('button[data-act]');if(!b)return;
+  if(b.dataset.act==='unpublish'&&!confirm('確定要下架嗎？客戶將看不到這則優惠'))return;
+  try{await api(b.dataset.act,{id:+b.dataset.id});load()}catch(x){alert(x.message)}};
+$('reload').onclick=load;
+
+// ===== 設定（老闆）=====
+function fillSettings(){
+  $('s_name').value=CFG.brand_name||'';$('s_tag').value=CFG.tagline||'';$('s_acc').value=CFG.accent||'#ffcc00';
+  $('s_phone').value=CFG.phone||'';$('s_addr').value=CFG.address||'';$('s_line').value=CFG.line_url||'';
+  $('s_cats').value=(CFG.categories||[]).join(',');$('s_lauto').checked=CFG.line_auto===true;
+  if(ROLE==='boss')api('secret_status').then(j=>$('lineSt').textContent=j.line_token_set?' 目前：已設定':' 目前：未設定').catch(()=>{});
+}
+const setOut=t=>$('setOut').textContent=t;
+$('saveBrand').onclick=async()=>{
+  try{
+    const cats=$('s_cats').value.split(/[,，、]/).map(x=>x.trim()).filter(Boolean).slice(0,12);
+    const line=$('s_line').value.trim();
+    if(line&&!/^https:\/\//.test(line))throw new Error('LINE 連結必須是 https 開頭');
+    for(const [k,v] of [['brand_name',$('s_name').value.trim()],['tagline',$('s_tag').value.trim()],['accent',$('s_acc').value],['phone',$('s_phone').value.trim()],['address',$('s_addr').value.trim()],['line_url',line],['categories',cats]])
+      await api('settings_set',{key:k,value:v});
+    await publicSettings();fillCats();setOut('✅ 已儲存');
+  }catch(e){setOut('❌ '+e.message)}
+};
+$('saveTok').onclick=async()=>{try{await api('secret_set',{key:'line_token',value:$('s_ltok').value.trim()});$('s_ltok').value='';fillSettings();setOut('✅ 已儲存 LINE token')}catch(e){setOut('❌ '+e.message)}};
+$('saveAuto').onclick=async()=>{try{await api('settings_set',{key:'line_auto',value:$('s_lauto').checked});setOut('✅ 已儲存')}catch(e){setOut('❌ '+e.message)}};
+$('savePw').onclick=async()=>{
+  try{
+    const t=$('pwTarget').value,n=$('pwNew').value;
+    if(n.length<8)throw new Error('密碼至少 8 碼');
+    await api('password_set',{target:t,new:n});
+    if(t==='boss'){PW=n;sessionStorage.setItem('pw',n)}
+    $('pwNew').value='';setOut('✅ 密碼已變更');
+  }catch(e){setOut('❌ '+e.message)}
+};
 </script></body></html>
