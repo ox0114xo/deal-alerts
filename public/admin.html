@@ -60,9 +60,10 @@ async function uploadImage(file){
   const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);
   cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);
   const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));
-  const name=Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
-  const r=await fetch(SB+'/storage/v1/object/deal-images/'+name,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'image/jpeg'},body:blob});
-  if(!r.ok)throw new Error('圖片上傳失敗');
-  return SB+'/storage/v1/object/public/deal-images/'+name;
+  // 透過 Edge Function 上傳（需管理員密碼），不再開放匿名上傳
+  const r=await fetch(SB+'/functions/v1/push-demo-upload',{method:'POST',headers:{'x-admin-pw':pw.value,'Content-Type':'image/jpeg'},body:blob});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(r.status===401?'密碼錯誤':'圖片上傳失敗：'+(j.error||r.status));
+  return j.url;
 }
 </script></body></html>
