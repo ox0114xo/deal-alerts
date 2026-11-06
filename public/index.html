@@ -17,6 +17,7 @@ button:disabled{opacity:.4}
 <h1>📢 公告通知</h1>
 <button id="install" hidden>安裝到桌面</button>
 <button id="sub">開啟通知</button>
+<button id="unsub" hidden style="background:#444;color:#fff">關閉通知</button>
 <div id="msg"></div>
 </div>
 <script>
@@ -30,6 +31,16 @@ addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;install.hidde
 install.onclick=async()=>{if(dp){dp.prompt();dp=null;install.hidden=true}};
 if(isIOS&&!standalone)msg('iPhone：點 Safari 下方「分享」→「加入主畫面」，再從桌面開啟此 App，才能開啟通知。');
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
+const rpc=(fn,a)=>fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(a)});
+// 依目前訂閱狀態切換按鈕
+async function refresh(){
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const s=await reg.pushManager.getSubscription();
+    sub.hidden=!!s; unsub.hidden=!s;
+    if(s)msg('✅ 通知已開啟');
+  }catch(_){}
+}
 sub.onclick=async()=>{
   try{
     if(!('PushManager'in window))return msg('此瀏覽器不支援推播'+(isIOS?'\n請先加入主畫面再開啟':''));
@@ -37,9 +48,21 @@ sub.onclick=async()=>{
     if(p!=='granted')return msg('未允許通知');
     const reg=await navigator.serviceWorker.ready;
     const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
-    const r=await fetch(SB+'/rest/v1/rpc/push_demo_subscribe',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_sub:s.toJSON()})});
+    const r=await rpc('push_demo_subscribe',{p_sub:s.toJSON()});
     if(!r.ok)throw new Error(await r.text());
-    msg('✅ 已開啟，之後會收到公告');
+    msg('✅ 已開啟，之後會收到公告'); refresh();
   }catch(e){msg('失敗：'+e.message)}
 };
+unsub.onclick=async()=>{
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const s=await reg.pushManager.getSubscription();
+    if(s){
+      await rpc('push_demo_unsubscribe',{p_endpoint:s.endpoint}); // 先從資料庫移除
+      await s.unsubscribe(); // 再取消瀏覽器訂閱
+    }
+    msg('🔕 已關閉通知'); sub.hidden=false; unsub.hidden=true;
+  }catch(e){msg('失敗：'+e.message)}
+};
+refresh();
 </script></body></html>
