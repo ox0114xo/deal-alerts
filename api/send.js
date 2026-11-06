@@ -24,5 +24,7 @@ module.exports = async (req, res) => {
       if (e.statusCode === 404 || e.statusCode === 410) await rpc('push_demo_remove', { p_pw: pw, p_endpoint: s.endpoint });
     }
   }));
+  // 寫入歷史紀錄
+  await rpc('push_demo_log', { p_pw: pw, p_title: title || '最新優惠', p_body: body, p_total: subs.length, p_sent: sent, p_failed: failed });
   res.json({ total: subs.length, sent, failed });
 };
