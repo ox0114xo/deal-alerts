@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en"><head>
+<html lang="zh-Hant"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Deal Alerts</title>
+<title>優惠資訊即時通知</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,11 +14,11 @@ button{width:100%;padding:16px;margin:8px 0;font-size:18px;border:0;border-radiu
 button:disabled{opacity:.4}
 #msg{margin-top:12px;font-size:15px;line-height:1.6;color:#ccc;white-space:pre-line}
 </style></head><body><div class="c">
-<h1>🔔 Deal Alerts</h1>
-<p style="color:#aaa;margin:0 0 16px">Get instant notifications for new deals &amp; promotions.</p>
-<button id="install" hidden>Add to Home Screen</button>
-<button id="sub">Turn On Notifications</button>
-<button id="unsub" hidden style="background:#444;color:#fff">Turn Off Notifications</button>
+<h1>🔔 優惠資訊即時通知</h1>
+<p style="color:#aaa;margin:0 0 16px">最新優惠、限時活動，第一時間通知你。</p>
+<button id="install" hidden>安裝到桌面</button>
+<button id="sub">開啟優惠通知</button>
+<button id="unsub" hidden style="background:#444;color:#fff">關閉優惠通知</button>
 <div id="msg"></div>
 </div>
 <script>
@@ -39,20 +39,20 @@ async function refresh(){
     const reg=await navigator.serviceWorker.ready;
     const s=await reg.pushManager.getSubscription();
     sub.hidden=!!s; unsub.hidden=!s;
-    if(s)msg('✅ Notifications are on');
+    if(s)msg('✅ 優惠通知已開啟');
   }catch(_){}
 }
 sub.onclick=async()=>{
   try{
     if(!('PushManager'in window))return msg('Push is not supported in this browser'+(isIOS?'\nAdd to Home Screen first, then try again':''));
     const p=await Notification.requestPermission();
-    if(p!=='granted')return msg('Notification permission denied');
+    if(p!=='granted')return msg('未允許通知');
     const reg=await navigator.serviceWorker.ready;
     const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
     const r=await rpc('push_demo_subscribe',{p_sub:s.toJSON()});
     if(!r.ok)throw new Error(await r.text());
-    msg('✅ Done! You will get instant deal alerts'); refresh();
-  }catch(e){msg('Failed: '+e.message)}
+    msg('✅ 已開啟，之後會即時收到優惠通知'); refresh();
+  }catch(e){msg('失敗：'+e.message)}
 };
 unsub.onclick=async()=>{
   try{
@@ -62,8 +62,8 @@ unsub.onclick=async()=>{
       await rpc('push_demo_unsubscribe',{p_endpoint:s.endpoint}); // remove from database first
       await s.unsubscribe(); // then unsubscribe in browser
     }
-    msg('🔕 Notifications turned off'); sub.hidden=false; unsub.hidden=true;
-  }catch(e){msg('Failed: '+e.message)}
+    msg('🔕 已關閉優惠通知'); sub.hidden=false; unsub.hidden=true;
+  }catch(e){msg('失敗：'+e.message)}
 };
 refresh();
 </script></body></html>

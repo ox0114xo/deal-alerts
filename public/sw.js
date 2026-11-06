@@ -1,6 +1,6 @@
 // Push received -> show notification
 self.addEventListener('push', e => {
-  let d = { title: 'New Deal', body: '' };
+  let d = { title: '最新優惠', body: '' };
   try { d = e.data.json(); } catch (_) {}
   e.waitUntil(self.registration.showNotification(d.title, {
     body: d.body, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: '/' }

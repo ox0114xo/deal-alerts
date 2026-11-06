@@ -1,6 +1,6 @@
 {
-  "name": "Deal Alerts",
-  "short_name": "Deals",
+  "name": "優惠資訊即時通知",
+  "short_name": "優惠通知",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#111111",
