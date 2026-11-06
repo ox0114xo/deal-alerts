@@ -31,6 +31,9 @@ let dp=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;install.hidden=false});
 install.onclick=async()=>{if(dp){dp.prompt();dp=null;install.hidden=true}};
 if(isIOS&&!standalone)msg('iPhone：點 Safari 下方「分享」→「加入主畫面」，再從桌面開啟此 App，才能開啟通知。');
+// Android：3 秒內沒跳出安裝按鈕 -> 顯示手動安裝教學
+if(/android/i.test(navigator.userAgent)&&!standalone)setTimeout(()=>{if(install.hidden&&!msgBox().textContent)msg('Android：請用 Chrome 開啟，點右上角「⋮」→「安裝應用程式」或「加到主畫面」。')},3000);
+function msgBox(){return document.getElementById('msg')}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
 const rpc=(fn,a)=>fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(a)});
 // Toggle buttons by subscription state

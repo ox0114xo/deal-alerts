@@ -13,3 +13,6 @@ self.addEventListener('notificationclick', e => {
 });
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+
+// 空的 fetch handler：確保舊版 Android Chrome 也判定為可安裝
+self.addEventListener('fetch', () => {});
