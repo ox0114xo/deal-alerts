@@ -11,62 +11,90 @@
 body{margin:0;font-family:system-ui,sans-serif;background:#111;color:#fff;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;box-sizing:border-box}
 .c{max-width:360px;width:100%;text-align:center}
 button{width:100%;padding:16px;margin:8px 0;font-size:18px;border:0;border-radius:12px;background:#fc0;color:#000;font-weight:700}
-button:disabled{opacity:.4}
+#unsub{background:#333;color:#aaa;font-size:14px;padding:10px;font-weight:400}
 #msg{margin-top:12px;font-size:15px;line-height:1.6;color:#ccc;white-space:pre-line}
+.box{background:#222;border-radius:12px;padding:14px;text-align:left;font-size:15px;line-height:1.8;margin-top:12px}
+.box b{color:#fc0}
+.ok{color:#6f6;font-size:18px;margin:10px 0}
 </style></head><body><div class="c">
 <h1>🔔 優惠資訊即時通知</h1>
 <p style="color:#aaa;margin:0 0 16px">最新優惠、限時活動，第一時間通知你。</p>
 <button id="install" hidden>安裝到桌面</button>
-<button id="sub">開啟優惠通知</button>
-<button id="unsub" hidden style="background:#444;color:#fff">關閉優惠通知</button>
+<button id="sub" hidden>開啟優惠通知</button>
+<div id="ok" class="ok" hidden>✅ 優惠通知已開啟</div>
+<div id="guide"></div>
 <div id="msg"></div>
+<button id="unsub" hidden>關閉優惠通知</button>
 </div>
 <script>
 const VAPID='BM28jEtri0zOpJy0fm44NMh3brS-RKk6NBB1XET8rkNFofI74u9U4qMPFmevaUztuDoMJhsvEFmOIucbM4_5mlY', SB='https://bfydeckhzazenebgduwy.supabase.co', KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
-const msg=t=>document.getElementById('msg').textContent=t;
+const $=id=>document.getElementById(id);
+const msg=t=>$('msg').textContent=t;
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isAndroid=/android/i.test(navigator.userAgent);
+const inApp=/line|fban|fbav|instagram|micromessenger/i.test(navigator.userAgent);
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
 const u8=b=>{const p='='.repeat((4-b.length%4)%4),s=(b+p).replace(/-/g,'+').replace(/_/g,'/'),r=atob(s);return Uint8Array.from([...r].map(c=>c.charCodeAt(0)))};
-let dp=null;
-addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;install.hidden=false});
-install.onclick=async()=>{if(dp){dp.prompt();dp=null;install.hidden=true}};
-if(isIOS&&!standalone)msg('iPhone：點 Safari 下方「分享」→「加入主畫面」，再從桌面開啟此 App，才能開啟通知。');
-// Android：3 秒內沒跳出安裝按鈕 -> 顯示手動安裝教學
-if(/android/i.test(navigator.userAgent)&&!standalone)setTimeout(()=>{if(install.hidden&&!msgBox().textContent)msg('Android：請用 Chrome 開啟，點右上角「⋮」→「安裝應用程式」或「加到主畫面」。')},3000);
-function msgBox(){return document.getElementById('msg')}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
 const rpc=(fn,a)=>fetch(SB+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(a)});
-// Toggle buttons by subscription state
-async function refresh(){
-  try{
-    const reg=await navigator.serviceWorker.ready;
-    const s=await reg.pushManager.getSubscription();
-    sub.hidden=!!s; unsub.hidden=!s;
-    if(s)msg('✅ 優惠通知已開啟');
-  }catch(_){}
+const guide=h=>$('guide').innerHTML=h?'<div class="box">'+h+'</div>':'';
+
+// Android 一鍵安裝
+let dp=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('install').hidden=false});
+$('install').onclick=async()=>{if(dp){dp.prompt();dp=null;$('install').hidden=true}};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js');
+
+// 建立訂閱並寫入資料庫
+async function subscribe(reg){
+  const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
+  const r=await rpc('push_demo_subscribe',{p_sub:s.toJSON()});
+  if(!r.ok)throw new Error(await r.text());
+  return s;
 }
-sub.onclick=async()=>{
+
+// 依目前狀態決定畫面；已允許但沒訂閱時自動補訂閱
+async function refresh(){
+  $('sub').hidden=$('unsub').hidden=$('ok').hidden=true; guide(''); msg('');
+  // 1. 內建瀏覽器（LINE/FB/IG）無法安裝或推播
+  if(inApp){guide('請改用瀏覽器開啟：<br>點右上角「⋯」→「<b>用瀏覽器開啟</b>」'+(isIOS?'（iPhone 請選 <b>Safari</b>）':'（Android 請選 <b>Chrome</b>）'));return}
+  // 2. iPhone 必須先加入主畫面
+  if(isIOS&&!standalone){guide('<b>iPhone 請先安裝到主畫面：</b><br>1. 用 <b>Safari</b> 開啟本頁<br>2. 點下方「<b>分享</b>」按鈕<br>3. 選「<b>加入主畫面</b>」<br>4. 回到主畫面，<b>點圖示開啟</b>後再開啟通知');return}
+  if(!('PushManager'in window)||!('Notification'in window)){msg('此瀏覽器不支援推播，請改用 Chrome 或 Safari');return}
+  // 3. 通知被封鎖：教使用者重新開啟
+  if(Notification.permission==='denied'){
+    guide('<b>通知目前被封鎖，請到設定重新開啟：</b><br>'+(isIOS?'設定 → 通知 → 找到本 App → 允許通知':'Chrome 網址列左側 🔒 → 權限 → 通知 → 允許（或 手機設定 → 應用程式 → 通知）')+'<br>開啟後回到本頁即可。');return}
+  const reg=await navigator.serviceWorker.ready;
+  let s=await reg.pushManager.getSubscription();
+  const optout=localStorage.getItem('optout')==='1';
+  // 已允許通知但沒有訂閱（例如換網址、訂閱失效）且使用者沒主動關閉 -> 自動補訂閱
+  if(!s&&Notification.permission==='granted'&&!optout){try{s=await subscribe(reg)}catch(e){msg('失敗：'+e.message)}}
+  if(s){
+    if(!optout)rpc('push_demo_subscribe',{p_sub:s.toJSON()}); // 每次開啟都同步，確保資料庫有這支手機
+    $('ok').hidden=false;$('unsub').hidden=false;
+  }else{$('sub').hidden=false}
+}
+
+$('sub').onclick=async()=>{
   try{
-    if(!('PushManager'in window))return msg('此瀏覽器不支援推播'+(isIOS?'\n請先加入主畫面再開啟':''));
     const p=await Notification.requestPermission();
-    if(p!=='granted')return msg('未允許通知');
-    const reg=await navigator.serviceWorker.ready;
-    const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(VAPID)});
-    const r=await rpc('push_demo_subscribe',{p_sub:s.toJSON()});
-    if(!r.ok)throw new Error(await r.text());
-    msg('✅ 已開啟，之後會即時收到優惠通知'); refresh();
+    if(p!=='granted'){await refresh();return msg('未允許通知，請重新點一次並選「允許」')}
+    localStorage.removeItem('optout');
+    await subscribe(await navigator.serviceWorker.ready);
+    await refresh();
   }catch(e){msg('失敗：'+e.message)}
 };
-unsub.onclick=async()=>{
+$('unsub').onclick=async()=>{
   try{
     const reg=await navigator.serviceWorker.ready;
     const s=await reg.pushManager.getSubscription();
-    if(s){
-      await rpc('push_demo_unsubscribe',{p_endpoint:s.endpoint}); // remove from database first
-      await s.unsubscribe(); // then unsubscribe in browser
-    }
-    msg('🔕 已關閉優惠通知'); sub.hidden=false; unsub.hidden=true;
+    if(s){await rpc('push_demo_unsubscribe',{p_endpoint:s.endpoint});await s.unsubscribe()}
+    localStorage.setItem('optout','1'); // 記住使用者主動關閉，避免自動補訂閱
+    await refresh();msg('🔕 已關閉優惠通知');
   }catch(e){msg('失敗：'+e.message)}
 };
+// 從設定回到頁面時重新檢查
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 refresh();
+// Android：3 秒內沒跳出安裝按鈕 -> 顯示手動安裝教學
+if(isAndroid&&!standalone&&!inApp)setTimeout(()=>{if($('install').hidden&&!$('msg').textContent&&!$('guide').innerHTML)msg('Android：請用 Chrome 開啟，點右上角「⋮」→「安裝應用程式」或「加到主畫面」。')},3000);
 </script></body></html>
