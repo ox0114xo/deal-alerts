@@ -87,6 +87,11 @@ hr{border:0;border-top:1px solid #333;margin:18px 0}
     <label style="color:#fff"><input id="s_lauto" type="checkbox" style="width:auto;margin-right:8px">發送優惠時自動同步廣播到 LINE</label>
     <button class="sec" id="saveAuto">儲存同步設定</button>
     <hr>
+    <h3>客戶掃碼訂閱</h3>
+    <div class="mut">印出來放在店裡，客戶掃描就能開啟訂閱頁。</div>
+    <canvas id="qr" style="width:100%;max-width:280px;background:#fff;border-radius:12px;display:block;margin:8px auto"></canvas>
+    <div class="row"><button class="sec" id="qrDl">下載 QR 圖片</button><button class="sec" id="qrCopy">複製訂閱連結</button></div>
+    <hr>
     <h3>變更密碼</h3>
     <select id="pwTarget"><option value="staff">員工密碼</option><option value="boss">老闆密碼</option></select>
     <input id="pwNew" type="password" placeholder="新密碼（至少 8 碼）" autocomplete="new-password">
@@ -97,6 +102,7 @@ hr{border:0;border-top:1px solid #333;margin:18px 0}
 
 <div id="modal" hidden><div class="c" id="mbody"></div></div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
 const SB='https://bfydeckhzazenebgduwy.supabase.co',KEY='sb_publishable_fwuVUnvOmOFSCgnv8F-Rhg_OlG9vtlD';
 const $=id=>document.getElementById(id);
@@ -224,11 +230,26 @@ $('reload').onclick=load;
 
 // ===== 設定（老闆）=====
 function fillSettings(){
+  drawQR();
   $('s_name').value=CFG.brand_name||'';$('s_tag').value=CFG.tagline||'';$('s_acc').value=CFG.accent||'#ffcc00';
   $('s_phone').value=CFG.phone||'';$('s_addr').value=CFG.address||'';$('s_line').value=CFG.line_url||'';
   $('s_cats').value=(CFG.categories||[]).join(',');$('s_lauto').checked=CFG.line_auto===true;
   if(ROLE==='boss')api('secret_status').then(j=>$('lineSt').textContent=j.line_token_set?' 目前：已設定':' 目前：未設定').catch(()=>{});
 }
+// QR Code：畫到 canvas（白底、四周留白），可下載成 PNG
+const SITE=location.origin+'/';
+function drawQR(){
+  try{
+    const qr=qrcode(0,'M');qr.addData(SITE);qr.make();
+    const n=qr.getModuleCount(),m=4,px=12,size=(n+m*2)*px,name=CFG.brand_name||'';
+    const cv=$('qr');cv.width=size;cv.height=size+(name?70:0);
+    const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.fillStyle='#000';
+    for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.isDark(r,c))g.fillRect((c+m)*px,(r+m)*px,px,px);
+    if(name){g.textAlign='center';g.font='bold 34px sans-serif';g.fillText(name,size/2,size+20,size-40)}
+  }catch(_){}
+}
+$('qrDl').onclick=()=>{const a=document.createElement('a');a.download='subscribe-qr.png';a.href=$('qr').toDataURL('image/png');a.click()};
+$('qrCopy').onclick=async()=>{try{await navigator.clipboard.writeText(SITE);setOut('✅ 已複製：'+SITE)}catch(_){setOut(SITE)}};
 const setOut=t=>$('setOut').textContent=t;
 $('saveBrand').onclick=async()=>{
   try{

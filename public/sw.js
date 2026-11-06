@@ -16,7 +16,21 @@ self.addEventListener('notificationclick', e => {
     return clients.openWindow(url);
   }));
 });
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-// 空的 fetch handler：確保舊版 Android Chrome 也判定為可安裝
-self.addEventListener('fetch', () => {});
+
+// 離線快取：頁面採「網路優先，失敗才用快取」，避免部署後看到舊版
+const CACHE = 'deal-alerts-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/icon-192.png'])).then(() => self.skipWaiting()));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => clients.claim()));
+});
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  // 只處理本站 GET 頁面/靜態檔；API 與後台一律走網路
+  if (e.request.method !== 'GET' || u.origin !== self.location.origin || u.pathname.startsWith('/api/') || u.pathname === '/admin.html') return;
+  e.respondWith(fetch(e.request).then(r => {
+    if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    return r;
+  }).catch(() => caches.match(e.request).then(m => m || caches.match('/'))));
+});
