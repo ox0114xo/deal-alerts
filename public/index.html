@@ -22,6 +22,8 @@ button{width:100%;padding:16px;margin:8px 0;font-size:18px;border:0;border-radiu
 <button id="install" hidden>安裝到桌面</button>
 <button id="sub" hidden>開啟優惠通知</button>
 <div id="ok" class="ok" hidden>✅ 優惠通知已開啟</div>
+<button id="test" hidden style="background:#fc0">發送測試通知</button>
+<div id="sysnote" class="box" hidden>📱 <b>收不到通知？</b><br>網頁無法偵測手機系統層級的通知開關。請先按上方「發送測試通知」，如果<b>沒有跳出</b>，請到：<br>手機「設定 → 通知與狀態列 → 應用程式通知」，找到 <b>Chrome</b>（若已安裝到桌面，也要檢查本 App）→ 開啟「<b>允許通知</b>」。</div>
 <div id="guide"></div>
 <div id="msg"></div>
 <button id="unsub" hidden>關閉優惠通知</button>
@@ -54,7 +56,7 @@ async function subscribe(reg){
 
 // 依目前狀態決定畫面；已允許但沒訂閱時自動補訂閱
 async function refresh(){
-  $('sub').hidden=$('unsub').hidden=$('ok').hidden=true; guide(''); msg('');
+  $('sub').hidden=$('unsub').hidden=$('ok').hidden=$('test').hidden=$('sysnote').hidden=true; guide(''); msg('');
   // 1. 內建瀏覽器（LINE/FB/IG）無法安裝或推播
   if(inApp){guide('請改用瀏覽器開啟：<br>點右上角「⋯」→「<b>用瀏覽器開啟</b>」'+(isIOS?'（iPhone 請選 <b>Safari</b>）':'（Android 請選 <b>Chrome</b>）'));return}
   // 2. iPhone 必須先加入主畫面
@@ -70,7 +72,7 @@ async function refresh(){
   if(!s&&Notification.permission==='granted'&&!optout){try{s=await subscribe(reg)}catch(e){msg('失敗：'+e.message)}}
   if(s){
     if(!optout)rpc('push_demo_subscribe',{p_sub:s.toJSON()}); // 每次開啟都同步，確保資料庫有這支手機
-    $('ok').hidden=false;$('unsub').hidden=false;
+    $('ok').hidden=false;$('unsub').hidden=false;$('test').hidden=false;$('sysnote').hidden=false;
   }else{$('sub').hidden=false}
 }
 
@@ -90,6 +92,14 @@ $('unsub').onclick=async()=>{
     if(s){await rpc('push_demo_unsubscribe',{p_endpoint:s.endpoint});await s.unsubscribe()}
     localStorage.setItem('optout','1'); // 記住使用者主動關閉，避免自動補訂閱
     await refresh();msg('🔕 已關閉優惠通知');
+  }catch(e){msg('失敗：'+e.message)}
+};
+// 本機測試通知：用來確認手機系統層級是否有顯示通知
+$('test').onclick=async()=>{
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    await reg.showNotification('測試通知',{body:'如果你看到這則通知，代表手機可以正常顯示優惠通知 ✅',icon:'/icon-192.png',badge:'/icon-192.png',data:{url:'/'}});
+    msg('已送出測試通知。若沒有看到，請依上方說明檢查手機通知設定。');
   }catch(e){msg('失敗：'+e.message)}
 };
 // 從設定回到頁面時重新檢查
